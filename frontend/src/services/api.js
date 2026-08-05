@@ -1,0 +1,31 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:5000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+export const generateContent = async (prompt, level) => {
+  try {
+    const response = await api.post('/generate', {
+      prompt,
+      level,
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(error.response.data?.message || 'Failed to generate content.');
+    }
+
+    if (error.request) {
+      throw new Error('Unable to reach the server. Please try again.');
+    }
+
+    throw new Error('Something went wrong while generating content.');
+  }
+};
+
+export default api;
