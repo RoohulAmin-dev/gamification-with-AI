@@ -96,7 +96,8 @@ textarea {
 
 .hero-copy {
   margin: 0 auto;
-  max-width: 640px;
+  padding-top: 30px;
+  max-width: auto;
   color: var(--text-muted);
   font-size: clamp(1rem, 1.5vw, 1.18rem);
 }
