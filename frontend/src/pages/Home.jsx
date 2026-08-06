@@ -37,6 +37,8 @@ const UnknownTypeFallback = ({ learningType }) => (
 const Home = () => {
   const [prompt, setPrompt] = useState('');
   const [level, setLevel] = useState('beginner');
+  const [mode, setMode] = useState('auto');
+  const [promptHistory, setPromptHistory] = useState([]);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,6 +54,18 @@ const Home = () => {
     return () => clearInterval(interval);
   }, [loading]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('prompt_history');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setPromptHistory(parsed);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
@@ -60,8 +74,18 @@ const Home = () => {
     setLoadingStepIndex(0);
 
     try {
-      const data = await generateContent(prompt, level);
+      const finalPrompt = mode && mode !== 'auto' ? `FORCE_LEARNING_MODE:${mode}\n${prompt}` : prompt;
+      const data = await generateContent(finalPrompt, level);
       setResult(data);
+      // Update prompt history (most recent first, no duplicates, max 4)
+      try {
+        const normalized = prompt.trim();
+        const updated = [normalized, ...promptHistory.filter(p => p !== normalized)].slice(0, 4);
+        setPromptHistory(updated);
+        localStorage.setItem('prompt_history', JSON.stringify(updated));
+      } catch (e) {
+        // ignore
+      }
       // Smooth scroll to results
       setTimeout(() => {
         window.scrollTo({ top: window.innerHeight * 0.6, behavior: 'smooth' });
@@ -108,6 +132,18 @@ const Home = () => {
                 <option value="advanced">Advanced</option>
               </select>
             </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: '12px' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)' }}>Mode:</span>
+              <select className="select-control" value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option value="auto">Auto (AI Decide)</option>
+                <option value="flashcards">Flashcards</option>
+                <option value="quiz">Quiz</option>
+                <option value="timeline">Timeline</option>
+                <option value="diagram">Diagram</option>
+                <option value="visualization">Visualization</option>
+                <option value="simulation">Simulation</option>
+              </select>
+            </div>
             <button type="button" className="button-primary" onClick={handleGenerate} disabled={loading || !prompt.trim()}>
               {loading ? 'Designing Lesson...' : 'Generate Lesson'}
             </button>
@@ -115,8 +151,8 @@ const Home = () => {
         </div>
 
         <div className="topic-chips">
-          <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)', marginRight: '8px' }}>Try:</span>
-          {exampleTopics.map((topic) => (
+          <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)', marginRight: '8px' }}>History:</span>
+          {(promptHistory.length ? promptHistory : exampleTopics).map((topic) => (
             <button key={topic} type="button" className="chip" onClick={() => setPrompt(topic)}>
               {topic}
             </button>

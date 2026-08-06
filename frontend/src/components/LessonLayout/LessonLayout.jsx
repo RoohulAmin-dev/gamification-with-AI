@@ -1,6 +1,54 @@
 import React, { useState, useMemo } from 'react';
 import useProgress from '../../hooks/useProgress';
 
+const MiniChallengeInteractive = ({ miniChallenge }) => {
+  const [selected, setSelected] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSelect = (index) => {
+    if (submitted) return;
+    setSelected(index);
+    setSubmitted(true);
+  };
+
+  const normalize = (s) => (s || '').toString().trim().toLowerCase();
+  const selectedText = miniChallenge.options?.[selected];
+  const isCorrect = submitted && normalize(selectedText) === normalize(miniChallenge.answer);
+
+  return (
+    <div>
+      <h4>{miniChallenge.question}</h4>
+
+      {miniChallenge.options?.map((option, index) => (
+        <button
+          key={index}
+          className="chip"
+          onClick={() => handleSelect(index)}
+          disabled={submitted}
+          style={{ display: 'block', width: '100%', marginBottom: '10px', textAlign: 'left', cursor: submitted ? 'default' : 'pointer', opacity: submitted && selected !== index ? 0.7 : 1 }}
+        >
+          {option}
+        </button>
+      ))}
+
+      {submitted && (
+        <div style={{ marginTop: '12px' }}>
+          <div style={{ fontWeight: 700, marginBottom: '8px', color: isCorrect ? 'var(--success)' : 'var(--danger)' }}>
+            {isCorrect ? 'Correct ✅' : 'Incorrect ✖'}
+          </div>
+          <div style={{ marginBottom: '8px' }}>
+            <strong>Explanation:</strong>
+            <div>{miniChallenge.explanation}</div>
+          </div>
+          {!isCorrect && (
+            <div style={{ marginTop: '6px' }}><strong>Answer:</strong> {miniChallenge.answer}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const LessonLayout = ({ title, decision = {}, children, miniChallenge = null }) => {
   const [completed, setCompleted] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
@@ -102,35 +150,8 @@ const LessonLayout = ({ title, decision = {}, children, miniChallenge = null }) 
         </div>
         <h4 className="card-title" style={{ marginTop: 0 }}>Mini Challenge</h4>
         {miniChallenge ? (
-    <div>
-
-        <h4>{miniChallenge.question}</h4>
-
-        {miniChallenge.options?.map((option,index)=>(
-            <button
-                key={index}
-                className="chip"
-                style={{
-                    display:"block",
-                    width:"100%",
-                    marginBottom:"10px",
-                    textAlign:"left"
-                }}
-            >
-                {option}
-            </button>
-        ))}
-
-        <p style={{marginTop:"15px"}}>
-            <strong>Answer:</strong> {miniChallenge.answer}
-        </p>
-
-        <p>
-            {miniChallenge.explanation}
-        </p>
-
-    </div>
-) : (
+          <MiniChallengeInteractive miniChallenge={miniChallenge} />
+        ) : (
           <div className="muted">No mini challenge provided for this lesson.</div>
         )}
       </div>

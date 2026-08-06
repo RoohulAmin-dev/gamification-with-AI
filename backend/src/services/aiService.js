@@ -134,12 +134,113 @@ const parseAIResponse = (rawText) => {
     throw new Error(`AI response could not be parsed as valid JSON. Reasons: ${errors.join(' | ')}`);
 };
 
+// Helper: create a local fallback lesson matching the existing schema
+const createFallbackLesson = (topic, level, forcedMode = null) => {
+    const learning_type = forcedMode && allowedLearningTypes.includes(forcedMode) ? forcedMode : 'flashcards';
+    const title = `Intro to ${topic}`;
+    const overview = `A concise introduction to ${topic} for ${level || 'Beginner'} learners.`;
+    const key_points = [
+        `Core idea of ${topic}`,
+        `Important terminology`,
+        `How it is used in practice`,
+        `Common pitfalls`,
+        `Next steps to practice`
+    ];
+    const mini_challenge = {
+        question: `Which statement about ${topic} is most accurate?`,
+        options: [
+            `It's primarily used for practice`,
+            `It's unrelated to the topic`,
+            `It helps illustrate a key concept`,
+            `None of the above`
+        ],
+        answer: `It helps illustrate a key concept`,
+        explanation: `This is a safe fallback challenge highlighting the practical role of the topic.`
+    };
+
+    const content = {
+        overview,
+        key_points,
+        estimated_time: '10 minutes',
+        reason: `Fallback content generated locally for ${learning_type}`,
+        mini_challenge
+    };
+
+    // Provide simple content shapes for known types
+    if (learning_type === 'flashcards') {
+        content.cards = [
+            { front: `${topic} — definition`, back: `A brief definition of ${topic}.` },
+            { front: `${topic} — use`, back: `A short note on how ${topic} is used.` },
+            { front: `${topic} — tip`, back: `A practical tip related to ${topic}.` }
+        ];
+    } else if (learning_type === 'quiz') {
+        content.questions = [
+            { question: `What is ${topic}?`, options: ['A concept', 'An animal', 'A number'], answer: 'A concept' },
+            { question: `Why use ${topic}?`, options: ['To confuse', 'To clarify', 'To ignore'], answer: 'To clarify' }
+        ];
+    } else if (learning_type === 'timeline') {
+        content.steps = [
+            { title: 'Step 1', description: `Begin by understanding ${topic}.` },
+            { title: 'Step 2', description: `Practice core ideas of ${topic}.` }
+        ];
+    }
+
+    return {
+        title,
+        learning_type,
+        subtype: '',
+        difficulty: level || 'Beginner',
+        reason: content.reason,
+        estimated_time: content.estimated_time,
+        content
+    };
+};
+
+// Ensure mini_challenge exists and is valid; if missing, synthesize a simple one.
+const ensureMiniChallenge = (parsed, topic) => {
+    if (!parsed || !parsed.content) return parsed;
+    const mc = parsed.content.mini_challenge;
+    const isValid = mc && typeof mc.question === 'string' && Array.isArray(mc.options) && mc.options.length >= 2 && typeof mc.answer === 'string';
+    if (isValid) return parsed;
+
+    const fallback = {
+        question: parsed.content.overview ? `Which of the following best summarizes the overview?` : `Quick question about ${topic}`,
+        options: ['A', 'B', 'C'].slice(0, 3),
+        answer: 'A',
+        explanation: 'Fallback mini-challenge generated locally.'
+    };
+
+    parsed.content.mini_challenge = fallback;
+    return parsed;
+};
+
 const generateAIResponse = async (prompt, level) => {
     if (!OPENROUTER_API_KEY) {
         throw new Error("OpenRouter API key is not configured.");
     }
 
-    try {
+    // Detect forced learning mode embedded in prompt: special prefix `FORCE_LEARNING_MODE:mode`
+    let forcedMode = null;
+    let cleanPrompt = prompt;
+    const forcePrefix = 'FORCE_LEARNING_MODE:';
+    if (typeof prompt === 'string' && prompt.startsWith(forcePrefix)) {
+        const firstLineEnd = prompt.indexOf('\n');
+        const header = firstLineEnd === -1 ? prompt : prompt.slice(0, firstLineEnd);
+        forcedMode = header.slice(forcePrefix.length).trim().toLowerCase();
+        cleanPrompt = firstLineEnd === -1 ? '' : prompt.slice(firstLineEnd + 1).trim();
+    }
+
+    const buildSystemPrompt = (strict = false) => {
+        const base = `You are an expert teacher who generates complete, lesson-ready educational content.\n\nEvery lesson must include the following top-level fields exactly: title, learning_type, subtype, difficulty, reason, estimated_time, content.\n\nThe content object must include: overview (2-4 sentences), key_points (an array of five concise points), rich learning content, a real-world example, common mistakes, a practical tip, and a mini_challenge object with question, options (array), answer, explanation.\n\nWhen deciding learning_type prefer these mappings but choose what fits best: Definitions → flashcards; Facts → flashcards; Algorithms → timeline; Step-by-step processes → simulation; Relationships → diagram; Comparisons → visualization; Revision/Test → quiz.\n\nReturn ONLY valid JSON that exactly matches the schema. Do not include any explanation, markdown, or text outside the JSON object.`;
+
+        if (strict) {
+            return base + '\n\nSTRICT INSTRUCTIONS: Output must be a single JSON object, with no surrounding text, no markdown fences, no comments. If you cannot produce the requested JSON, return an empty JSON object `{}` (which will trigger fallback on the server). Ensure `mini_challenge` is present and non-empty.';
+        }
+
+        return base + '\n\nMake sure `mini_challenge` is included and non-empty. Use the topic and difficulty to tailor examples and tips.';
+    };
+
+    const callModel = async (systemPrompt, userPrompt) => {
         const response = await axios.post(
             "https://openrouter.ai/api/v1/chat/completions",
             {
@@ -147,76 +248,11 @@ const generateAIResponse = async (prompt, level) => {
                 messages: [
                     {
                         role: "system",
-                        content: `You are an expert teacher who generates complete, lesson-ready educational content.
-
-First decide the BEST learning_type based on the topic:
-- Definitions → flashcards
-- Facts → flashcards
-- Algorithms → timeline
-- Step-by-step processes → simulation
-- Relationships → diagram
-- Comparisons → visualization
-- Revision/Test → quiz
-
-Never overuse timeline; choose it only for truly sequential or historical topics.
-
-Choose exactly one learning_type from:
-- flashcards
-- quiz
-- timeline
-- diagram
-- visualization
-- simulation
-
-You must always return ONLY valid JSON with this exact schema:
-{
-  "title":"",
-  "learning_type":"",
-  "subtype":"",
-  "difficulty":"",
-  "reason":"",
-  "estimated_time":"",
-  "content":{}
-}
-
-Every lesson MUST include in the top-level content object:
-- overview: 2-4 sentences.
-- key_points: 5 concise bullet points.
-- estimated_time: a realistic duration string.
-- reason: a short explanation for choosing the learning_type.
-- mini_challenge: an object with question, options, answer, explanation.
-
-Generate richer content:
-- flashcards: 5-8 cards.
-- quiz: 5-10 questions.
-- timeline: 6-10 steps.
-- simulation: realistic actions in each step.
-- diagram: meaningful nodes and connections.
-- visualization: useful comparisons.
-
-Mini_challenge MUST be complete and never empty:
-{
-  "question":"",
-  "options":[""],
-  "answer":"",
-  "explanation":""
-}
-
-Rules:
-- Never return markdown.
-- Never wrap the JSON inside \`\`\`json.
-- Never include any text outside the JSON.
-- Do not explain your reasoning.
-- Output only the JSON object.
-
-Important:
-- The content field must match the selected learning_type.
-- Use the exact keys shown above.
-- Fill content with rich, educational material related to the topic.`
+                        content: systemPrompt
                     },
                     {
                         role: "user",
-                        content: `Topic: ${prompt}\nDifficulty: ${level || "Beginner"}`
+                        content: `Topic: ${userPrompt}\nDifficulty: ${level || "Beginner"}`
                     }
                 ]
             },
@@ -230,19 +266,52 @@ Important:
             }
         );
 
-        const rawText = response.data?.choices?.[0]?.message?.content || "";
-        return parseAIResponse(rawText);
-    } catch (error) {
-        const statusCode = error.response?.status || "N/A";
-        const errorBody = error.response?.data;
-        const errorMessage = errorBody?.error?.message || error.message;
+        return response.data?.choices?.[0]?.message?.content || "";
+    };
 
-        console.error(`OpenRouter API request failed. Status: ${statusCode}`);
-        console.error("OpenRouter full error response:");
-        console.error(JSON.stringify(errorBody, null, 2));
-        console.error(`OpenRouter API error: ${errorMessage}`);
+    try {
+        // 1) First attempt with improved system prompt
+        const systemPrompt = buildSystemPrompt(false);
+        const rawText = await callModel(systemPrompt, cleanPrompt);
+        const parsed = parseAIResponse(rawText);
 
-        throw error;
+        // Ensure mini_challenge exists
+        ensureMiniChallenge(parsed, cleanPrompt);
+
+        // If forcedMode supplied, override learning_type
+        if (forcedMode && allowedLearningTypes.includes(forcedMode)) {
+            parsed.learning_type = forcedMode;
+        }
+
+        return parsed;
+    } catch (err) {
+        console.warn('aiService.generateAIResponse: first attempt failed, trying strict JSON retry.', err.message);
+
+        // Retry once with a stricter instruction
+        try {
+            const strictPrompt = buildSystemPrompt(true);
+            const rawText2 = await callModel(strictPrompt, cleanPrompt);
+            const parsed2 = parseAIResponse(rawText2);
+
+            ensureMiniChallenge(parsed2, cleanPrompt);
+
+            if (forcedMode && allowedLearningTypes.includes(forcedMode)) {
+                parsed2.learning_type = forcedMode;
+            }
+
+            return parsed2;
+        } catch (err2) {
+            console.error('aiService.generateAIResponse: strict retry failed, falling back to local content.', err2.message);
+
+            // Final fallback: return locally generated lesson
+            try {
+                const fallback = createFallbackLesson(cleanPrompt || 'Topic', level, forcedMode);
+                return fallback;
+            } catch (fallbackErr) {
+                console.error('aiService.generateAIResponse: failed to create fallback lesson.', fallbackErr.message);
+                throw fallbackErr;
+            }
+        }
     }
 };
 
