@@ -43,6 +43,7 @@ const Home = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
   
   useEffect(() => {
     if (!loading) return;
@@ -72,29 +73,54 @@ const Home = () => {
     setError('');
     setResult(null);
     setLoadingStepIndex(0);
+    setStatusMessage('Sending prompt to AI...');
 
-    try {
-      const finalPrompt = mode && mode !== 'auto' ? `FORCE_LEARNING_MODE:${mode}\n${prompt}` : prompt;
-      const data = await generateContent(finalPrompt, level);
-      setResult(data);
-      // Update prompt history (most recent first, no duplicates, max 4)
+    const finalPrompt = mode && mode !== 'auto' ? `FORCE_LEARNING_MODE:${mode}\n${prompt}` : prompt;
+    let attempt = 0;
+    const maxAttempts = 2;
+    let lastError = null;
+    let gotResult = false;
+
+    while (attempt < maxAttempts) {
       try {
-        const normalized = prompt.trim();
-        const updated = [normalized, ...promptHistory.filter(p => p !== normalized)].slice(0, 4);
-        setPromptHistory(updated);
-        localStorage.setItem('prompt_history', JSON.stringify(updated));
-      } catch (e) {
-        // ignore
+        if (attempt > 0) {
+          setStatusMessage('Please wait, your request is being resent to AI...');
+        }
+
+        const data = await generateContent(finalPrompt, level);
+        setResult(data);
+        gotResult = true;
+        setStatusMessage('');
+
+        try {
+          const normalized = prompt.trim();
+          const updated = [normalized, ...promptHistory.filter(p => p !== normalized)].slice(0, 4);
+          setPromptHistory(updated);
+          localStorage.setItem('prompt_history', JSON.stringify(updated));
+        } catch (e) {
+          // ignore
+        }
+
+        setTimeout(() => {
+          window.scrollTo({ top: window.innerHeight * 0.6, behavior: 'smooth' });
+        }, 100);
+        break;
+      } catch (err) {
+        lastError = err;
+        const retryable = /AI response could not be parsed|invalid AI response|Unable to parse/i.test(err.message);
+        if (!retryable) {
+          break;
+        }
+        attempt += 1;
+        if (attempt >= maxAttempts) break;
       }
-      // Smooth scroll to results
-      setTimeout(() => {
-        window.scrollTo({ top: window.innerHeight * 0.6, behavior: 'smooth' });
-      }, 100);
-    } catch (err) {
-      setError(err.message || 'Something went wrong.');
-    } finally {
-      setLoading(false);
     }
+
+    if (!gotResult) {
+      setError(lastError?.message || 'Something went wrong.');
+    }
+    setLoading(false);
+    setStatusMessage('');
   };
 
   const learningType = result?.data?.learning_type || result?.learning_type;
@@ -170,6 +196,7 @@ const Home = () => {
               <div>
                 <strong>Architecting your lesson</strong>
                 <p className="loading-status-copy">Combining cognitive science with AI to build the best experience.</p>
+                {statusMessage && <p className="loading-status-copy" style={{ marginTop: '8px' }}>{statusMessage}</p>}
               </div>
             </div>
 
@@ -192,7 +219,7 @@ const Home = () => {
           <LessonLayout 
             title={result?.data?.title || result?.title} 
             decision={result?.data || {}} 
-            miniChallenge={result?.data?.mini_challenge}
+            miniChallenge={result?.data?.content?.mini_challenge}
           >
             {RenderedComponent ? (
               <RenderedComponent response={result} />

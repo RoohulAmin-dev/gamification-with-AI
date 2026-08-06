@@ -409,53 +409,47 @@ const generateAIResponse = async (prompt, level) => {
         return response.data?.choices?.[0]?.message?.content || "";
     };
 
-    try {
-        // 1) First attempt with improved system prompt
-        const systemPrompt = buildSystemPrompt(false);
-        const rawText = await callModel(systemPrompt, cleanPrompt);
-        const parsed = parseAIResponseV2(rawText, cleanPrompt);
-
-        // Ensure mini_challenge exists
-        ensureMiniChallenge(parsed, cleanPrompt);
-
-        // If forcedMode supplied, override learning_type
-        if (forcedMode && allowedLearningTypes.includes(forcedMode)) {
-            parsed.learning_type = forcedMode;
+    const attempts = [
+        { label: 'initial attempt', prompt: buildSystemPrompt(false) },
+        { label: 'strict retry', prompt: buildSystemPrompt(true) },
+        {
+            label: 'strict retry 2',
+            prompt: buildSystemPrompt(true) + '\n\nIf the previous output was invalid, try again and return only the JSON object with no surrounding text or markdown.'
         }
+    ];
 
-        return parsed;
-    } catch (err) {
-        console.warn('aiService.generateAIResponse: first attempt failed, trying strict JSON retry.', err.message);
-
-        // Retry once with a stricter instruction
+    let lastError = null;
+    for (let index = 0; index < attempts.length; index += 1) {
+        const attempt = attempts[index];
         try {
-            const strictPrompt = buildSystemPrompt(true);
-            const rawText2 = await callModel(strictPrompt, cleanPrompt);
-            const parsed2 = parseAIResponseV2(rawText2, cleanPrompt);
+            console.log(`aiService.generateAIResponse: ${attempt.label}`);
+            const rawText = await callModel(attempt.prompt, cleanPrompt);
+            const parsed = parseAIResponseV2(rawText, cleanPrompt);
 
-            ensureMiniChallenge(parsed2, cleanPrompt);
-
+            ensureMiniChallenge(parsed, cleanPrompt);
             if (forcedMode && allowedLearningTypes.includes(forcedMode)) {
-                parsed2.learning_type = forcedMode;
+                parsed.learning_type = forcedMode;
             }
 
-            return parsed2;
-        } catch (err2) {
-            console.error('aiService.generateAIResponse: strict retry failed, falling back to local content.', err2.message);
-
-            // Final fallback: return locally generated lesson
-            try {
-                const fallback = createFallbackLesson(cleanPrompt || 'Topic', level, forcedMode);
-                return fallback;
-            } catch (fallbackErr) {
-                console.error('aiService.generateAIResponse: failed to create fallback lesson.', fallbackErr.message);
-                throw fallbackErr;
-            }
+            return parsed;
+        } catch (err) {
+            lastError = err;
+            console.warn(`aiService.generateAIResponse: ${attempt.label} failed.`, err.message);
+            if (index === attempts.length - 1) break;
         }
+    }
+
+    console.error('aiService.generateAIResponse: all retries failed, falling back to local content.', lastError?.message);
+    try {
+        const fallback = createFallbackLesson(cleanPrompt || 'Topic', level, forcedMode);
+        return fallback;
+    } catch (fallbackErr) {
+        console.error('aiService.generateAIResponse: failed to create fallback lesson.', fallbackErr.message);
+        throw fallbackErr;
     }
 };
 
-const parseAIResponseV2 = (rawText, topicHint = '') => {
+const parseAIResponseV2 = (rawText, topicHint = '', options = { allowFallback: false }) => {
     console.log('----- aiService.parseAIResponseV2: raw AI response -----');
     console.log(rawText);
     console.log('---------------------------------------------------');
@@ -530,6 +524,70 @@ const parseAIResponseV2 = (rawText, topicHint = '') => {
             for (let i=0;i<sents.length && p.content.key_points.length<5;i++) if (!p.content.key_points.includes(sents[i])) p.content.key_points.push(sents[i]);
             while (p.content.key_points.length < 5) p.content.key_points.push(`Key point ${p.content.key_points.length+1} about ${p.title || topicHint}`);
         }
+        const ensureValidArray = (value) => Array.isArray(value) ? value.filter((item) => item !== null && item !== undefined) : [];
+
+        const sanitizeQuestions = () => {
+            const questions = ensureValidArray(p.content.questions);
+            const validQuestions = questions.filter((q) => isPlainObject(q) && typeof q.question === 'string' && q.question.trim() && Array.isArray(q.options) && q.options.length >= 2 && q.options.every((opt) => typeof opt === 'string') && typeof q.answer === 'string');
+            p.content.questions = validQuestions;
+            while (p.content.questions.length < 5) {
+                const idx = p.content.questions.length;
+                const kp = p.content.key_points[idx] || `Concept ${idx+1}`;
+                p.content.questions.push({
+                    question: `Which statement best describes: ${kp}?`,
+                    options: [kp, 'A wrong option', 'Another wrong option', 'None of the above'],
+                    answer: kp,
+                    explanation: `This question checks your understanding of ${kp}.`
+                });
+            }
+        };
+
+        const sanitizeSteps = () => {
+            const steps = ensureValidArray(p.content.steps);
+            const validSteps = steps.filter((step) => isPlainObject(step) && typeof step.title === 'string' && step.title.trim() && typeof step.description === 'string');
+            p.content.steps = validSteps;
+            const minSteps = p.learning_type === 'timeline' ? 6 : 5;
+            while (p.content.steps.length < minSteps) {
+                p.content.steps.push({ title: `Step ${p.content.steps.length + 1}`, description: `Continue learning ${p.title || topicHint}.` });
+            }
+        };
+
+        const sanitizeNodes = () => {
+            p.content.nodes = ensureValidArray(p.content.nodes);
+            p.content.connections = ensureValidArray(p.content.connections);
+            if (p.content.nodes.length < 2) {
+                p.content.nodes = [
+                    { id: 'n1', label: p.title || 'Concept' },
+                    { id: 'n2', label: 'Example' }
+                ];
+            }
+            if (p.content.connections.length < 1) {
+                p.content.connections = [{ from: p.content.nodes[0].id, to: p.content.nodes[1].id, label: 'relates' }];
+            }
+        };
+
+        const sanitizeItems = () => {
+            p.content.items = ensureValidArray(p.content.items);
+            while (p.content.items.length < 5) {
+                p.content.items.push({ label: `Item ${p.content.items.length+1}`, value: p.content.items.length + 1 });
+            }
+        };
+
+        if (p.learning_type === 'quiz') {
+            sanitizeQuestions();
+        } else if (p.learning_type === 'timeline' || p.learning_type === 'simulation') {
+            sanitizeSteps();
+        } else if (p.learning_type === 'diagram') {
+            sanitizeNodes();
+        } else if (p.learning_type === 'visualization') {
+            sanitizeItems();
+        } else if (p.learning_type === 'flashcards') {
+            p.content.cards = ensureValidArray(p.content.cards).filter((card) => isPlainObject(card) && typeof card.front === 'string' && card.front.trim() && typeof card.back === 'string');
+            while (p.content.cards.length < 5) {
+                const kp = p.content.key_points[p.content.cards.length] || `Fact`;
+                p.content.cards.push({ front: kp, back: `Explanation: ${kp}` });
+            }
+        }
 
         ensureMiniChallenge(p, p.title || topicHint);
 
@@ -558,8 +616,13 @@ const parseAIResponseV2 = (rawText, topicHint = '') => {
         } catch (e) { errors.push(e.message || 'normalize error'); }
     }
 
-    console.warn('parseAIResponseV2: no valid candidate, returning fallback');
-    return createFallbackLesson(topicHint || 'Topic', 'Beginner');
+    if (options.allowFallback) {
+        console.warn('parseAIResponseV2: no valid candidate, returning fallback');
+        return createFallbackLesson(topicHint || 'Topic', 'Beginner');
+    }
+
+    const reason = errors.length ? errors.join(' | ') : 'No valid JSON candidates were parsed.';
+    throw new Error(`AI response could not be parsed into a valid lesson. ${reason}`);
 };
 
 module.exports = {
