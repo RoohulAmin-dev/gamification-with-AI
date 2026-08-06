@@ -27,6 +27,15 @@ const componentMap = {
 
 const exampleTopics = ['React Hooks', 'TCP/IP', 'CPU Scheduling', 'SQL Basics'];
 
+const learningModes = [
+  { key: 'flashcards', label: 'Flashcards', icon: '🧠', description: 'Memorize concepts through bite-sized cards.' },
+  { key: 'quiz', label: 'Quiz', icon: '✅', description: 'Test understanding with rapid question rounds.' },
+  { key: 'timeline', label: 'Timeline', icon: '🕒', description: 'See how ideas connect over time.' },
+  { key: 'diagram', label: 'Diagram', icon: '🧩', description: 'Visualize systems and workflows clearly.' },
+  { key: 'visualization', label: 'Visualization', icon: '📊', description: 'Explore concepts through rich visuals.' },
+  { key: 'simulation', label: 'Simulation', icon: '⚙️', description: 'Practice skills in an interactive scenario.' },
+];
+
 const UnknownTypeFallback = ({ learningType }) => (
   <div className="glass-card">
     <h4 className="card-title">Unsupported learning type</h4>
@@ -38,6 +47,7 @@ const Home = () => {
   const [prompt, setPrompt] = useState('');
   const [level, setLevel] = useState('beginner');
   const [mode, setMode] = useState('auto');
+  const [showModes, setShowModes] = useState(false);
   const [promptHistory, setPromptHistory] = useState([]);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -135,45 +145,79 @@ const Home = () => {
         </div>
 
         <div className="input-group">
-          <textarea
-            className="prompt-input"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="What do you want to learn today?"
-            rows={1}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleGenerate();
-              }
-            }}
-          />
+          <div className="input-body">
+            <textarea
+              className="prompt-input"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="What do you want to learn today?"
+              rows={1}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleGenerate();
+                }
+              }}
+            />
 
-          <div className="column-group" style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', marginTop: '10px' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)' }}>Difficulty:</span>
-              <select className="select-control" value={level} onChange={(e) => setLevel(e.target.value)}>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
+            <div className="settings-row">
+              <div className="input-meta-group">
+                <span className="field-label">Difficulty</span>
+                <select className="select-control" value={level} onChange={(e) => setLevel(e.target.value)}>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+
+              <button type="button" className="button-primary" onClick={handleGenerate} disabled={loading || !prompt.trim()}>
+                {loading ? 'Designing Lesson...' : 'Generate Lesson'}
+              </button>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: '12px' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)' }}>Mode:</span>
-              <select className="select-control" value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="auto">Auto (AI Decide)</option>
-                <option value="flashcards">Flashcards</option>
-                <option value="quiz">Quiz</option>
-                <option value="timeline">Timeline</option>
-                <option value="diagram">Diagram</option>
-                <option value="visualization">Visualization</option>
-                <option value="simulation">Simulation</option>
-              </select>
-            </div>
-            <button type="button" className="button-primary" onClick={handleGenerate} disabled={loading || !prompt.trim()}>
-              {loading ? 'Designing Lesson...' : 'Generate Lesson'}
-            </button>
           </div>
+
+          <aside className="learning-modes-panel">
+            <div className="learning-modes-header">
+              <div>
+                <p className="field-label">Learning Modes</p>
+                <h2 className="mode-panel-title">Choose the perfect format</h2>
+                <p className="mode-panel-copy">Select one of six premium learning experiences for your lesson.</p>
+              </div>
+              <button type="button" className="btn btn--ghost mode-toggle" onClick={() => setShowModes((prev) => !prev)}>
+                {showModes ? 'Hide' : 'Expand'}
+              </button>
+            </div>
+
+            <div className={`mode-panel-body ${showModes ? 'expanded' : ''}`}>
+              <div className="modes-grid">
+                {learningModes.map(({ key, label, icon, description }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`mode-item ${mode === key ? 'selected' : ''}`}
+                    onClick={() => setMode(key)}
+                  >
+                    <span className="mode-icon">{icon}</span>
+                    <div>
+                      <div className="mode-label">{label}</div>
+                      <p className="mode-description">{description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mode-panel-footer">
+                <p className="mode-note">
+                  {mode === 'auto'
+                    ? 'AI will choose the best learning experience if you generate without selecting one.'
+                    : `Selected: ${learningModes.find((item) => item.key === mode)?.label}`}
+                </p>
+                <button type="button" className="btn btn--ghost mode-reset" onClick={() => setMode('auto')}>
+                  Reset to Auto
+                </button>
+              </div>
+            </div>
+          </aside>
         </div>
 
         <div className="topic-chips">
