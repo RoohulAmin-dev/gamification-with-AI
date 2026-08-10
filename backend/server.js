@@ -1,4 +1,5 @@
-const { app, PORT } = require("./src/app");
+const app = require("./src/app");
+const { PORT } = require("./src/config/env");
 
 if (require.main === module) {
     app.listen(PORT, () => {
