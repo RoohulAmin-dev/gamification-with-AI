@@ -13,7 +13,9 @@ const MiniChallengeInteractive = ({ miniChallenge }) => {
 
   const normalize = (s) => (s || '').toString().trim().toLowerCase();
   const selectedText = miniChallenge.options?.[selected];
-  const isCorrect = submitted && normalize(selectedText) === normalize(miniChallenge.answer);
+  const isCorrect =
+    submitted &&
+    normalize(selectedText) === normalize(miniChallenge.answer);
 
   return (
     <div>
@@ -25,7 +27,14 @@ const MiniChallengeInteractive = ({ miniChallenge }) => {
           className="chip"
           onClick={() => handleSelect(index)}
           disabled={submitted}
-          style={{ display: 'block', width: '100%', marginBottom: '10px', textAlign: 'left', cursor: submitted ? 'default' : 'pointer', opacity: submitted && selected !== index ? 0.7 : 1 }}
+          style={{
+            display: 'block',
+            width: '100%',
+            marginBottom: '10px',
+            textAlign: 'left',
+            cursor: submitted ? 'default' : 'pointer',
+            opacity: submitted && selected !== index ? 0.7 : 1,
+          }}
         >
           {option}
         </button>
@@ -33,15 +42,25 @@ const MiniChallengeInteractive = ({ miniChallenge }) => {
 
       {submitted && (
         <div style={{ marginTop: '12px' }}>
-          <div style={{ fontWeight: 700, marginBottom: '8px', color: isCorrect ? 'var(--success)' : 'var(--danger)' }}>
+          <div
+            style={{
+              fontWeight: 700,
+              marginBottom: '8px',
+              color: isCorrect ? 'var(--success)' : 'var(--danger)',
+            }}
+          >
             {isCorrect ? 'Correct ✅' : 'Incorrect ✖'}
           </div>
+
           <div style={{ marginBottom: '8px' }}>
             <strong>Explanation:</strong>
             <div>{miniChallenge.explanation}</div>
           </div>
+
           {!isCorrect && (
-            <div style={{ marginTop: '6px' }}><strong>Answer:</strong> {miniChallenge.answer}</div>
+            <div style={{ marginTop: '6px' }}>
+              <strong>Answer:</strong> {miniChallenge.answer}
+            </div>
           )}
         </div>
       )}
@@ -49,21 +68,48 @@ const MiniChallengeInteractive = ({ miniChallenge }) => {
   );
 };
 
-const LessonLayout = ({ title, decision = {}, children, miniChallenge = null }) => {
+const LessonLayout = ({
+  title,
+  decision = {},
+  children,
+  miniChallenge = null,
+}) => {
   const [completed, setCompleted] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
-  const [lessonMessage, setLessonMessage] = useState('Complete the activity to unlock lesson progress.');
+  const [lessonMessage, setLessonMessage] = useState(
+    'Complete the activity to unlock lesson progress.'
+  );
   const [isReadyToComplete, setIsReadyToComplete] = useState(false);
-  const { state: progressState, addXP, completeLesson: markLessonComplete } = useProgress();
 
-  const handleComplete = () => {
-    if (!completed) {
-      addXP(10);
-      markLessonComplete();
+  const {
+    state: progressState,
+    addXP,
+    completeLesson: markLessonComplete,
+  } = useProgress();
+
+  const handleComplete = async () => {
+    if (completed) return;
+
+    try {
+      // Complete the lesson and update the progress state.
+      const updatedProgress = markLessonComplete();
+
+      // Add the XP reward separately.
+      // The progress hook synchronizes both changes with Supabase.
+      const finalProgress = addXP(10);
+
       setCompleted(true);
       setProgressPercent(100);
       setLessonMessage('You earned +10 XP!');
       setIsReadyToComplete(true);
+
+      console.log('Lesson completed:', {
+        updatedProgress,
+        finalProgress,
+      });
+    } catch (error) {
+      console.error('Failed to complete lesson:', error);
+      setLessonMessage('Unable to save progress. Please try again.');
     }
   };
 
@@ -71,16 +117,26 @@ const LessonLayout = ({ title, decision = {}, children, miniChallenge = null }) 
     setCompleted(false);
     setProgressPercent(0);
     setIsReadyToComplete(false);
-    setLessonMessage('Complete the activity to unlock lesson progress.');
+    setLessonMessage(
+      'Complete the activity to unlock lesson progress.'
+    );
   };
 
   const handleChildProgress = (value) => {
     const percent = Math.max(0, Math.min(100, value || 0));
+
     setProgressPercent(percent);
+
     if (!completed) {
       const ready = percent >= 100;
+
       setIsReadyToComplete(ready);
-      setLessonMessage(ready ? 'Ready to complete the lesson.' : 'Keep going to progress the lesson.');
+
+      setLessonMessage(
+        ready
+          ? 'Ready to complete the lesson.'
+          : 'Keep going to progress the lesson.'
+      );
     }
   };
 
@@ -95,90 +151,209 @@ const LessonLayout = ({ title, decision = {}, children, miniChallenge = null }) 
         onComplete: handleChildComplete,
       });
     }
-    return children;
-  }, [children, handleChildProgress, handleChildComplete]);
 
-    return (
+    return children;
+  }, [children]);
+
+  return (
     <div className="lesson-layout">
+
       {/* Lesson header */}
       <header className="lesson-header">
         <div style={{ flex: 1 }}>
-          <h2 className="hero-title" style={{ fontSize: '2.5rem', textAlign: 'left', marginBottom: '8px' }}>{title || 'Lesson'}</h2>
-          {decision?.reason && <div className="muted" style={{ fontSize: '1.1rem' }}>{decision.reason}</div>}
+          <h2
+            className="hero-title"
+            style={{
+              fontSize: '2.5rem',
+              textAlign: 'left',
+              marginBottom: '8px',
+            }}
+          >
+            {title || 'Lesson'}
+          </h2>
+
+          {decision?.reason && (
+            <div
+              className="muted"
+              style={{ fontSize: '1.1rem' }}
+            >
+              {decision.reason}
+            </div>
+          )}
         </div>
-        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div className="badge" style={{ background: 'var(--text-strong)', color: 'white' }}>{decision?.estimated_time || '15 min'}</div>
-          <div className="badge">XP: {progressState.xp}</div>
+
+        <div
+          style={{
+            textAlign: 'right',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+          }}
+        >
+          <div
+            className="badge"
+            style={{
+              background: 'var(--text-strong)',
+              color: 'white',
+            }}
+          >
+            {decision?.estimated_time || '15 min'}
+          </div>
+
+          <div className="badge">
+            XP: {progressState.xp}
+          </div>
         </div>
       </header>
 
+      {/* Lesson progress */}
       <div className="lesson-summary">
-        <div className="lesson-progress-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div
+          className="lesson-progress-meta"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
+          }}
+        >
           <span className="muted">Lesson Progress</span>
-          <span className="text-strong" style={{ fontWeight: 700 }}>{progressPercent}%</span>
+
+          <span
+            className="text-strong"
+            style={{ fontWeight: 700 }}
+          >
+            {progressPercent}%
+          </span>
         </div>
+
         <div className="lesson-progress-bar">
-          <div className="lesson-progress-fill" style={{ width: `${progressPercent}%` }} />
+          <div
+            className="lesson-progress-fill"
+            style={{
+              width: `${progressPercent}%`,
+            }}
+          />
         </div>
+
         <div style={{ marginTop: '16px' }}>
-          <div className="lesson-status-tag">{lessonMessage}</div>
+          <div className="lesson-status-tag">
+            {lessonMessage}
+          </div>
         </div>
       </div>
 
       {/* AI Decision card */}
       <div className="card card--padded">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', fontWeight: 700, marginBottom: '4px' }}>
+            <div
+              style={{
+                fontSize: '0.8rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'var(--accent)',
+                fontWeight: 700,
+                marginBottom: '4px',
+              }}
+            >
               Strategy: {decision?.learning_type || 'Custom'}
             </div>
-            <div className="card-title" style={{ margin: 0 }}>{decision?.title || 'AI Strategy'}</div>
-            <p className="muted" style={{ marginTop: '8px', marginBottom: 0 }}>{decision?.summary || decision?.reason || ''}</p>
+
+            <div
+              className="card-title"
+              style={{ margin: 0 }}
+            >
+              {decision?.title || 'AI Strategy'}
+            </div>
+
+            <p
+              className="muted"
+              style={{
+                marginTop: '8px',
+                marginBottom: 0,
+              }}
+            >
+              {decision?.summary ||
+                decision?.reason ||
+                ''}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Interactive learning component slot */}
+      {/* Interactive learning component */}
       <div className="lesson-content">
         {childWithControls}
       </div>
 
       {/* Mini challenge */}
       <div className="mini-challenge">
-        <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', fontWeight: 700, marginBottom: '12px' }}>
+        <div
+          style={{
+            fontSize: '0.8rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            color: 'var(--accent)',
+            fontWeight: 700,
+            marginBottom: '12px',
+          }}
+        >
           Apply your knowledge
         </div>
-        <h4 className="card-title" style={{ marginTop: 0 }}>Mini Challenge</h4>
+
+        <h4
+          className="card-title"
+          style={{ marginTop: 0 }}
+        >
+          Mini Challenge
+        </h4>
+
         {miniChallenge ? (
           <MiniChallengeInteractive miniChallenge={miniChallenge} />
         ) : (
-          <div className="muted">No mini challenge provided for this lesson.</div>
+          <p className="muted">No challenge available for this lesson.</p>
         )}
       </div>
 
-      {/* Completion screen */}
-      <div className="completion-screen">
-        {!completed ? (
-          <div className="card card--padded" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', background: 'rgba(0,0,0,0.02)', borderStyle: 'dashed' }}>
-            <div className="muted" style={{ fontSize: '1rem' }}>
-              {isReadyToComplete ? 'Great job! You have finished the activity.' : 'Complete the interactive activity above to finish the lesson.'}
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="btn btn--primary" onClick={handleComplete} disabled={!isReadyToComplete}>Mark Lesson as Complete</button>
-              <button className="btn" onClick={handleReset}>Restart Activity</button>
-            </div>
-          </div>
-        ) : (
-          <div className="card card--padded" style={{ background: 'var(--text-strong)', color: 'white', borderRadius: '32px' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎉</div>
-            <h3 className="card-title" style={{ color: 'white', fontSize: '2rem', marginBottom: '8px' }}>Lesson Completed!</h3>
-            <p style={{ opacity: 0.8, fontSize: '1.1rem', marginBottom: '24px' }}>You've successfully mastered this topic and earned +10 XP.</p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button className="btn" style={{ background: 'white', color: 'var(--text-strong)', border: 'none' }} onClick={handleReset}>Restart Lesson</button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Lesson actions navigation footer */}
+      <footer
+        className="lesson-footer-actions"
+        style={{
+          marginTop: '40px',
+          paddingTop: '20px',
+          borderTop: '1px solid var(--border)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <button
+          className="btn btn--secondary"
+          onClick={handleReset}
+          disabled={!completed && progressPercent === 0}
+        >
+          Reset Activity
+        </button>
+
+        <button
+          className="btn btn--primary"
+          onClick={handleComplete}
+          disabled={!isReadyToComplete || completed}
+          style={{
+            background: completed ? 'var(--success)' : undefined,
+            borderColor: completed ? 'var(--success)' : undefined,
+          }}
+        >
+          {completed ? 'Lesson Completed ✓' : 'Mark Lesson as Complete'}
+        </button>
+      </footer>
     </div>
   );
 };

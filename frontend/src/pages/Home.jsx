@@ -1,3 +1,6 @@
+import LearningHistory from "../components/LearningHistory/LearningHistory";
+import { useAuth } from "../context/AuthContext";
+import { saveLearningHistory } from "../services/historyService";
 import { useEffect, useState } from 'react';
 import { generateContent } from '../services/api';
 import Diagram from '../components/Diagram/Diagram';
@@ -44,6 +47,7 @@ const UnknownTypeFallback = ({ learningType }) => (
 );
 
 const Home = () => {
+  const { user } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [level, setLevel] = useState('beginner');
   const [mode, setMode] = useState('auto');
@@ -101,7 +105,18 @@ const Home = () => {
         setResult(data);
         gotResult = true;
         setStatusMessage('');
+        // Save the generated lesson to the signed-in user's history
+        if (user?.id) {
+          const { error: historyError } = await saveLearningHistory({
+            userId: user.id,
+            prompt: prompt.trim(),
+            result: data,
+          });
 
+          if (historyError) {
+            console.error("Failed to save learning history:", historyError);
+          }
+        }
         try {
           const normalized = prompt.trim();
           const updated = [normalized, ...promptHistory.filter(p => p !== normalized)].slice(0, 4);
@@ -273,8 +288,25 @@ const Home = () => {
           </LessonLayout>
         </div>
       )}
+      {user?.id && (
+  <LearningHistory
+    userId={user.id}
+    onSelectLesson={(lesson) => {
+      if (lesson.lesson_data) {
+        setResult({
+          success: true,
+          data: lesson.lesson_data,
+        });
+
+        setPrompt(lesson.prompt || "");
+      }
+    }}
+  />
+)}
     </div>
+    
   );
+  
 };
 
 export default Home;
