@@ -1,8 +1,10 @@
 import { useAuth } from "../context/AuthContext";
 import { saveLearningHistory } from "../services/historyService";
+import { getLearningHistory } from "../services/historyService";
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { generateContent } from '../services/api';
+import { NavLink } from 'react-router-dom';
 import Diagram from '../components/Diagram/Diagram';
 import Timeline from '../components/Timeline/Timeline';
 import Flashcards from '../components/Flashcards/Flashcards';
@@ -28,7 +30,7 @@ const componentMap = {
   visualization: Visualization,
 };
 
-const exampleTopics = ['React Hooks', 'TCP/IP', 'CPU Scheduling', 'SQL Basics'];
+const exampleTopics = ['React Hooks', 'TCP/IP', 'CPU Scheduling', 'SQL Basics', 'Machine Learning'];
 
 const learningModes = [
   { key: 'flashcards', label: 'Flashcards', icon: '🧠', description: 'Memorize concepts through bite-sized cards.' },
@@ -59,6 +61,8 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
+  const [recentHistory, setRecentHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   useEffect(() => {
     const lesson = location.state?.lesson;
@@ -93,6 +97,21 @@ const Home = () => {
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    const loadRecent = async () => {
+      if (!user?.id) {
+        setHistoryLoading(false);
+        return;
+      }
+
+      const { data } = await getLearningHistory(user.id);
+      setRecentHistory((data || []).slice(0, 3));
+      setHistoryLoading(false);
+    };
+
+    loadRecent();
+  }, [user?.id]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -165,12 +184,14 @@ const Home = () => {
 
   return (
     <div className="glass-shell">
-      <section className="hero-panel">
-        <div style={{ marginBottom: 'var(--space-md)' }}>
-          <h1 className="hero-title">Master any topic with AI</h1>
-          <p className="hero-copy">Enter a subject and our AI will craft a personalized, interactive lesson designed for deep understanding.</p>
-        </div>
+      <section className="home-hero">
+        <h1 className="hero-title">What do you want to master today?</h1>
+        <p className="hero-copy">
+          {user?.email ? 'Welcome back. ' : ''}Our AI converts any topic into a personalized interactive lesson, tailored to how you learn best.
+        </p>
+      </section>
 
+      <section className="generator-card">
         <div className="input-group">
           <div className="input-body">
             <textarea
@@ -202,62 +223,101 @@ const Home = () => {
               </button>
             </div>
           </div>
+        </div>
+      </section>
 
-          <aside className="learning-modes-panel">
-            <div className="learning-modes-header">
-              <div>
-                <p className="field-label">Learning Modes</p>
-                <h2 className="mode-panel-title">Choose the perfect format</h2>
-                <p className="mode-panel-copy">Select one of six premium learning experiences for your lesson.</p>
-              </div>
-              <button type="button" className="btn btn--ghost mode-toggle" onClick={() => setShowModes((prev) => !prev)}>
-                {showModes ? 'Hide' : 'Expand'}
+      <section className="modes-section">
+        <div className="learning-modes-panel">
+          <div className="learning-modes-header">
+            <div>
+              <p className="field-label">Learning Modes</p>
+              <h2 className="mode-panel-title">Choose the perfect format</h2>
+              <p className="mode-panel-copy">Select one of six premium learning experiences for your lesson.</p>
+            </div>
+            <button type="button" className="btn btn--ghost mode-toggle" onClick={() => setShowModes((prev) => !prev)}>
+              {showModes ? 'Hide' : 'Expand'}
+            </button>
+          </div>
+
+          <div className={`mode-panel-body ${showModes ? 'expanded' : ''}`}>
+            <div className="modes-grid">
+              {learningModes.map(({ key, label, icon, description }) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`mode-item ${mode === key ? 'selected' : ''}`}
+                  onClick={() => setMode(key)}
+                >
+                  <span className="mode-icon">{icon}</span>
+                  <div>
+                    <div className="mode-label">{label}</div>
+                    <p className="mode-description">{description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="mode-panel-footer">
+              <p className="mode-note">
+                {mode === 'auto'
+                  ? 'AI will choose the best learning experience if you generate without selecting one.'
+                  : `Selected: ${learningModes.find((item) => item.key === mode)?.label}`}
+              </p>
+              <button type="button" className="btn btn--ghost mode-reset" onClick={() => setMode('auto')}>
+                Reset to Auto
               </button>
             </div>
-
-            <div className={`mode-panel-body ${showModes ? 'expanded' : ''}`}>
-              <div className="modes-grid">
-                {learningModes.map(({ key, label, icon, description }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`mode-item ${mode === key ? 'selected' : ''}`}
-                    onClick={() => setMode(key)}
-                  >
-                    <span className="mode-icon">{icon}</span>
-                    <div>
-                      <div className="mode-label">{label}</div>
-                      <p className="mode-description">{description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mode-panel-footer">
-                <p className="mode-note">
-                  {mode === 'auto'
-                    ? 'AI will choose the best learning experience if you generate without selecting one.'
-                    : `Selected: ${learningModes.find((item) => item.key === mode)?.label}`}
-                </p>
-                <button type="button" className="btn btn--ghost mode-reset" onClick={() => setMode('auto')}>
-                  Reset to Auto
-                </button>
-              </div>
-            </div>
-          </aside>
+          </div>
         </div>
+      </section>
 
+      <section className="quick-start">
         <div className="topic-chips">
-          <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-muted)', marginRight: '8px' }}>History:</span>
           {(promptHistory.length ? promptHistory : exampleTopics).map((topic) => (
             <button key={topic} type="button" className="chip" onClick={() => setPrompt(topic)}>
               {topic}
             </button>
           ))}
         </div>
-
-        {error && <p style={{ color: 'var(--danger)', fontWeight: 500 }}>{error}</p>}
       </section>
+
+      {!historyLoading && recentHistory.length > 0 && (
+        <section className="recent-activity">
+          <div className="recent-header">
+            <h2>Recent Activity</h2>
+            <NavLink to="/history" className="recent-link">View all history</NavLink>
+          </div>
+          <div className="recent-list">
+            {recentHistory.map((lesson) => (
+              <button
+                key={lesson.id}
+                type="button"
+                className="recent-item"
+                onClick={() => {
+                  setResult({
+                    success: true,
+                    data: lesson.lesson_data,
+                  });
+                  setPrompt(lesson.prompt || '');
+                  window.scrollTo({ top: window.innerHeight * 0.6, behavior: 'smooth' });
+                }}
+              >
+                <div>
+                  <h4>{lesson.title || lesson.prompt}</h4>
+                  <p>{lesson.learning_type || 'Lesson'} • {lesson.difficulty || 'Beginner'}</p>
+                </div>
+                <span className="recent-arrow">→</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!result && !loading && (
+        <div className="home-empty-state">
+          <p>Start with any topic. Your AI tutor will choose an interactive format based on what helps you learn best.</p>
+        </div>
+      )}
 
       {loading && (
         <div className="loading-overlay">
@@ -265,7 +325,7 @@ const Home = () => {
             <div className="thinking-top" style={{ marginBottom: '32px' }}>
               <div className="spinner" />
               <div>
-                <strong>Architecting your lesson</strong>
+                <strong>Building your interactive lesson...</strong>
                 <p className="loading-status-copy">Combining cognitive science with AI to build the best experience.</p>
                 {statusMessage && <p className="loading-status-copy" style={{ marginTop: '8px' }}>{statusMessage}</p>}
               </div>
@@ -287,9 +347,9 @@ const Home = () => {
 
       {result && (
         <div style={{ animation: 'textFade 0.6s ease-out' }}>
-          <LessonLayout 
-            title={result?.data?.title || result?.title} 
-            decision={result?.data || {}} 
+          <LessonLayout
+            title={result?.data?.title || result?.title}
+            decision={result?.data || {}}
             miniChallenge={result?.data?.content?.mini_challenge}
           >
             {RenderedComponent ? (
@@ -301,9 +361,7 @@ const Home = () => {
         </div>
       )}
     </div>
-    
   );
-  
 };
 
 export default Home;

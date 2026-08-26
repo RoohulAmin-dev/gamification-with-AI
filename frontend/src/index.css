@@ -1023,6 +1023,123 @@ textarea {
   }
 }
 
+.home-hero {
+  margin-bottom: var(--space-lg);
+}
+
+.home-hero .hero-title {
+  margin: 0 0 10px;
+}
+
+.home-hero .hero-copy {
+  margin: 0;
+  max-width: 720px;
+}
+
+.generator-card {
+  margin-bottom: var(--space-lg);
+}
+
+.modes-section {
+  margin-bottom: var(--space-lg);
+}
+
+.quick-start {
+  margin-bottom: var(--space-lg);
+}
+
+.quick-start .topic-chips {
+  margin-top: var(--space-sm);
+}
+
+.recent-activity {
+  margin-bottom: var(--space-lg);
+}
+
+.recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.recent-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.recent-link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.recent-link:hover {
+  text-decoration: underline;
+}
+
+.recent-list {
+  display: grid;
+  gap: 10px;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  color: var(--text-strong);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.recent-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.recent-item h4 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.recent-item p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.recent-arrow {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.home-empty-state {
+  text-align: center;
+  padding: var(--space-md);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .recent-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
 .app-layout {
   min-height: 100vh;
   display: flex;
