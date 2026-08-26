@@ -58,6 +58,12 @@ const Navbar = ({ onOpenMenu }) => {
           >
             Progress
           </NavLink>
+          <NavLink
+            to="/about"
+            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
+          >
+            About
+          </NavLink>
         </nav>
 
         <div className="navbar-actions" ref={profileRef}>
