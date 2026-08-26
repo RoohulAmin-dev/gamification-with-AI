@@ -1,9 +1,13 @@
-import Auth from "./components/Auth/Auth";
-import Home from "./pages/Home";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import AppLayout from './components/Layout/AppLayout';
+import Home from './pages/Home';
+import History from './pages/History';
+import Progress from './pages/Progress';
+import Auth from './pages/Auth';
 
 const AppContent = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -23,23 +27,14 @@ const AppContent = () => {
   }
 
   return (
-    <>
-      <Home />
-
-      <button
-        type="button"
-        onClick={signOut}
-        className="btn"
-        style={{
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          zIndex: 9999,
-        }}
-      >
-        Sign Out
-      </button>
-    </>
+    <AppLayout>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/progress" element={<Progress />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppLayout>
   );
 };
 

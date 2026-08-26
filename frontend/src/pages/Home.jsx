@@ -1,7 +1,7 @@
-import LearningHistory from "../components/LearningHistory/LearningHistory";
 import { useAuth } from "../context/AuthContext";
 import { saveLearningHistory } from "../services/historyService";
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { generateContent } from '../services/api';
 import Diagram from '../components/Diagram/Diagram';
 import Timeline from '../components/Timeline/Timeline';
@@ -48,6 +48,7 @@ const UnknownTypeFallback = ({ learningType }) => (
 
 const Home = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [prompt, setPrompt] = useState('');
   const [level, setLevel] = useState('beginner');
   const [mode, setMode] = useState('auto');
@@ -58,7 +59,19 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
-  
+
+  useEffect(() => {
+    const lesson = location.state?.lesson;
+    if (lesson?.lesson_data) {
+      setResult({
+        success: true,
+        data: lesson.lesson_data,
+      });
+      setPrompt(lesson.prompt || '');
+      window.scrollTo({ top: window.innerHeight * 0.6, behavior: 'smooth' });
+    }
+  }, [location.state?.lesson]);
+
   useEffect(() => {
     if (!loading) return;
 
@@ -105,7 +118,6 @@ const Home = () => {
         setResult(data);
         gotResult = true;
         setStatusMessage('');
-        // Save the generated lesson to the signed-in user's history
         if (user?.id) {
           const { error: historyError } = await saveLearningHistory({
             userId: user.id,
@@ -288,21 +300,6 @@ const Home = () => {
           </LessonLayout>
         </div>
       )}
-      {user?.id && (
-  <LearningHistory
-    userId={user.id}
-    onSelectLesson={(lesson) => {
-      if (lesson.lesson_data) {
-        setResult({
-          success: true,
-          data: lesson.lesson_data,
-        });
-
-        setPrompt(lesson.prompt || "");
-      }
-    }}
-  />
-)}
     </div>
     
   );
