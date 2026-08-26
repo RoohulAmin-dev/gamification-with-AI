@@ -64,6 +64,13 @@ const MobileDrawer = ({ open, onClose }) => {
           >
             About
           </NavLink>
+          <NavLink
+            to="/profile"
+            className={({ isActive }) => isActive ? 'drawer-link active' : 'drawer-link'}
+            onClick={handleNav}
+          >
+            Profile
+          </NavLink>
         </nav>
 
         <div className="drawer-footer">

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = ({ onOpenMenu }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, displayName } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
@@ -75,9 +75,9 @@ const Navbar = ({ onOpenMenu }) => {
             aria-label="Open profile menu"
           >
             <span className="profile-avatar">
-              {(user?.email?.[0] || 'U').toUpperCase()}
+              {(displayName || 'U')[0].toUpperCase()}
             </span>
-            <span className="profile-email">{user?.email}</span>
+            <span className="profile-email">{displayName}</span>
             <span className="profile-chevron">▾</span>
           </button>
 
@@ -85,13 +85,20 @@ const Navbar = ({ onOpenMenu }) => {
             <div className="profile-dropdown">
               <div className="profile-dropdown-header">
                 <span className="profile-avatar profile-avatar--lg">
-                  {(user?.email?.[0] || 'U').toUpperCase()}
+                  {(displayName || 'U')[0].toUpperCase()}
                 </span>
                 <div>
-                  <div className="profile-dropdown-email">{user?.email}</div>
-                  <div className="profile-dropdown-meta">Signed in</div>
+                  <div className="profile-dropdown-email">{displayName}</div>
+                  <div className="profile-dropdown-meta">{user?.email}</div>
                 </div>
               </div>
+              <NavLink
+                to="/profile"
+                className="profile-dropdown-action"
+                onClick={() => setProfileOpen(false)}
+              >
+                Profile
+              </NavLink>
               <button
                 type="button"
                 className="profile-dropdown-action"

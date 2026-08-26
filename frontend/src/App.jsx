@@ -4,6 +4,7 @@ import AppLayout from './components/Layout/AppLayout';
 import Home from './pages/Home';
 import History from './pages/History';
 import Progress from './pages/Progress';
+import Profile from './pages/Profile';
 import About from './pages/About';
 import Auth from './pages/Auth';
 
@@ -33,6 +34,7 @@ const AppContent = () => {
         <Route path="/" element={<Home />} />
         <Route path="/history" element={<History />} />
         <Route path="/progress" element={<Progress />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/about" element={<About />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

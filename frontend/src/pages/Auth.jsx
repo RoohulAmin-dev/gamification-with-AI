@@ -23,7 +23,8 @@ const Auth = ({ onSuccess }) => {
       if (mode === "signup") {
         const { data, error: signUpError } = await signUp(
           email.trim(),
-          password
+          password,
+          fullName.trim()
         );
 
         if (signUpError) {
@@ -32,7 +33,7 @@ const Auth = ({ onSuccess }) => {
 
         if (data?.user) {
           setMessage(
-            "Account created successfully. You can now start learning."
+            "Account created. Please check your email to confirm your account."
           );
 
           if (onSuccess) {
