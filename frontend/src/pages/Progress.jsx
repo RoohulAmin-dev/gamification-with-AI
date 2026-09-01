@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useProgress from '../hooks/useProgress';
-import { getLearningHistory } from '../services/historyService';
+import { getLearningHistory, deleteLearningHistory } from '../services/historyService';
 import { getTotalStudyTimeSeconds } from '../utils/progress';
 import useAchievements from '../hooks/useAchievements';
 import AchievementBadge from '../components/AchievementBadge/AchievementBadge';
@@ -27,6 +27,8 @@ const Progress = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -48,6 +50,19 @@ const Progress = () => {
 
     loadHistory();
   }, [user?.id]);
+
+  const handleDeleteHistory = async () => {
+    if (!user?.id) return;
+    setDeleting(true);
+    const { error } = await deleteLearningHistory(user.id);
+    if (error) {
+      console.error("Failed to delete history:", error);
+    } else {
+      setHistory([]);
+      setShowDeleteConfirm(false);
+    }
+    setDeleting(false);
+  };
 
   const studyTime = useMemo(() => getTotalStudyTimeSeconds(), []);
 
@@ -221,7 +236,18 @@ const Progress = () => {
 
       <div className="progress-body">
         <section className="progress-section recent-section">
-          <h2 className="section-title">Recent Learning Activity</h2>
+          <div className="recent-header">
+            <h2 className="section-title">Recent Learning Activity</h2>
+            {!historyLoading && history.length > 0 && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--small btn--danger"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                Clear History
+              </button>
+            )}
+          </div>
 
           {historyError && (
             <div className="history-error">
@@ -277,6 +303,32 @@ const Progress = () => {
             </div>
           )}
         </section>
+
+        {showDeleteConfirm && (
+          <div className="delete-confirm-banner">
+            <div className="delete-confirm-content">
+              <span>Are you sure? This will permanently delete all learning history from the database.</span>
+              <div className="delete-confirm-actions">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--small"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--small btn--danger"
+                  onClick={handleDeleteHistory}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting...' : 'Delete All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <section className="progress-section summary-section">
           <h2 className="section-title">Learning Summary</h2>

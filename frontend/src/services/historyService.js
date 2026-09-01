@@ -42,3 +42,16 @@ export const getLearningHistory = async (userId) => {
     error,
   };
 };
+
+export const deleteLearningHistory = async (userId) => {
+  if (!userId) {
+    return { error: new Error("User ID is required.") };
+  }
+
+  const { error } = await supabase
+    .from("learning_history")
+    .delete()
+    .eq("user_id", userId);
+
+  return { error };
+};
