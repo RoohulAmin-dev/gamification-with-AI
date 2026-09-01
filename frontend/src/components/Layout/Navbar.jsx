@@ -1,11 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import useProgress from '../../hooks/useProgress';
 
 const Navbar = ({ onOpenMenu }) => {
   const { user, signOut, displayName } = useAuth();
+  const { state: progressState } = useProgress();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
+
+  const streakValue = typeof progressState.streak === 'object' && progressState.streak !== null
+    ? Number(progressState.streak.current || 0)
+    : Number(progressState.streak || 0);
+
+  const xpValue = Number(progressState.xp || 0);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -65,6 +73,17 @@ const Navbar = ({ onOpenMenu }) => {
             About
           </NavLink>
         </nav>
+
+        <div className="navbar-stats">
+          <div className="stat-badge">
+            <span className="stat-icon">⚡</span>
+            <span className="stat-value">{xpValue}</span>
+          </div>
+          <div className="stat-badge">
+            <span className="stat-icon">🔥</span>
+            <span className={`stat-value ${streakValue > 0 ? 'active' : ''}`}>{streakValue}</span>
+          </div>
+        </div>
 
         <div className="navbar-actions" ref={profileRef}>
           <button

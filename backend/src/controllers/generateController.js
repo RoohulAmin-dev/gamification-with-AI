@@ -17,7 +17,7 @@ const generateContent = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: result,
-            isFallback: result.source === 'fallback' || false
+            isFallback: false
         });
     } catch (error) {
         console.error(error);

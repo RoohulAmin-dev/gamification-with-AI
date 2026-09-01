@@ -18,14 +18,14 @@ export const generateContent = async (prompt, level) => {
     return response.data;
   } catch (error) {
     if (error.response) {
-      throw new Error(error.response.data?.message || 'Failed to generate content.');
+      throw new Error(error.response.data?.message || 'Failed to generate content.', { cause: error });
     }
 
     if (error.request) {
-      throw new Error('Unable to reach the server. Please try again.');
+      throw new Error('Unable to reach the server. Please try again.', { cause: error });
     }
 
-    throw new Error('Something went wrong while generating content.');
+    throw new Error('Something went wrong while generating content.', { cause: error });
   }
 };
 

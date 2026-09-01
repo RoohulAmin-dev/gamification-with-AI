@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 const Timeline = ({ response, onProgress, onComplete }) => {
   const [index, setIndex] = useState(0);
-  const [expanded, setExpanded] = useState(true);
   const data = response?.data || response || {};
   const title = data.title || 'Timeline';
   const content = data.content || {};
@@ -23,9 +22,7 @@ const Timeline = ({ response, onProgress, onComplete }) => {
     );
   }
 
-  const step = steps[index];
-
-    return (
+  return (
     <div className="card card--padded" style={{ maxWidth: 800, margin: '0 auto', background: 'white' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
         <h4 style={{ margin: 0, fontWeight: 700 }}>{title}</h4>

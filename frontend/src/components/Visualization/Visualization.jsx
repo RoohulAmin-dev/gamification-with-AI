@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 const Visualization = ({ response, onProgress, onComplete }) => {
-  const [hoveredIndex, setHoveredIndex] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const data = response?.data || response || {};
   const title = data.title || 'Visualization';

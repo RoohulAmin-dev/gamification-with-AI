@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import useProgress from '../hooks/useProgress';
 import { getLearningHistory } from '../services/historyService';
 import { getTotalStudyTimeSeconds } from '../utils/progress';
+import useAchievements from '../hooks/useAchievements';
+import AchievementBadge from '../components/AchievementBadge/AchievementBadge';
 
 const formatStudyTime = (seconds) => {
   const hrs = Math.floor(seconds / 3600);
@@ -56,6 +58,24 @@ const Progress = () => {
   const xp = Number(state.xp || 0);
   const lessonsCompleted = Number(state.completedLessons || 0);
   const xpProgress = Math.min(xp / XP_MILESTONE, 1);
+
+  const streakMessage = useMemo(() => {
+    if (streakValue === 0) return 'Start your learning streak today!';
+    if (streakValue < 3) return 'Keep it going!';
+    if (streakValue < 7) return 'Building momentum!';
+    if (streakValue < 30) return '🔥 Hot streak!';
+    if (streakValue < 100) return '🔥🔥 On fire!';
+    return '🏆🔥🔥🔥 Streak legend!';
+  }, [streakValue]);
+
+  const streakColorClass = useMemo(() => {
+    if (streakValue === 0) return 'streak-cold';
+    if (streakValue < 7) return 'streak-warm';
+    if (streakValue < 30) return 'streak-hot';
+    return 'streak-blazing';
+  }, [streakValue]);
+
+  const { earned: earnedAchievements, inProgress: inProgressAchievements, getTierColor, newlyEarned } = useAchievements();
 
   const insights = useMemo(() => {
     if (!history.length) return null;
@@ -117,13 +137,13 @@ const Progress = () => {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className={`stat-card ${streakColorClass}`}>
           <div className="stat-icon">🔥</div>
           <div className="stat-content">
             <span className="stat-value">{streakValue}</span>
             <span className="stat-label">Current Streak</span>
             <span className="stat-context">
-              {streakValue > 0 ? `${streakValue} day${streakValue !== 1 ? 's' : ''}` : 'Start your learning streak today.'}
+              {streakMessage}
             </span>
           </div>
         </div>
@@ -137,6 +157,67 @@ const Progress = () => {
           </div>
         </div>
       </div>
+
+      {/* Achievement unlock notification */}
+      {newlyEarned && (
+        <div
+          className="achievement-unlock-banner"
+          style={{
+            padding: '16px 20px',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08))',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            marginBottom: '20px',
+            animation: 'celebrationPop 0.5s ease-out',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '1.8rem' }}>{newlyEarned.icon}</span>
+            <div>
+              <div style={{ fontWeight: 700, color: 'var(--text-strong)' }}>
+                Achievement Unlocked: {newlyEarned.title}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                {newlyEarned.description}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Earned achievements */}
+      {earnedAchievements.length > 0 && (
+        <section className="progress-section" style={{ marginBottom: '20px' }}>
+          <h2 className="section-title">Earned Badges ({earnedAchievements.length})</h2>
+          <div className="achievements-grid">
+            {earnedAchievements.map((achievement) => (
+              <AchievementBadge
+                key={achievement.id}
+                achievement={{ ...achievement, locked: false }}
+                getTierColor={getTierColor}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* In-progress achievements */}
+      {inProgressAchievements.length > 0 && (
+        <section className="progress-section" style={{ marginBottom: '20px' }}>
+          <h2 className="section-title">In Progress</h2>
+          <div className="achievements-grid">
+            {inProgressAchievements.map((achievement) => (
+              <AchievementBadge
+                key={achievement.id}
+                achievement={achievement}
+                getTierColor={getTierColor}
+                showProgress={true}
+                progressPercent={achievement.progress}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="progress-body">
         <section className="progress-section recent-section">

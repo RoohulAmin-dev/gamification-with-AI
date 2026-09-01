@@ -123,7 +123,7 @@ const About = () => {
             'Adding XP and progress tracking',
             'Deploying the application',
             'Improving the product experience',
-          ].map((item, index) => (
+          ].map((item) => (
             <div key={item} className="about-timeline-item">
               <span className="about-timeline-dot" />
               <span>{item}</span>

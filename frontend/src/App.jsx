@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AppLayout from './components/Layout/AppLayout';
 import Home from './pages/Home';
@@ -7,9 +7,15 @@ import Progress from './pages/Progress';
 import Profile from './pages/Profile';
 import About from './pages/About';
 import Auth from './pages/Auth';
+import ResetPassword from './pages/ResetPassword';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (location.pathname === '/reset-password') {
+    return <ResetPassword />;
+  }
 
   if (loading) {
     return (

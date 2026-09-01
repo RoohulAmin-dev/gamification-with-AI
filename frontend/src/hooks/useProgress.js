@@ -15,7 +15,7 @@ export default function useProgress() {
     const loadUserProgress = async () => {
       const { data, error } = await supabase
         .from("user_progress")
-        .select("xp, completed_lessons, streak")
+        .select("xp, completed_lessons, streak, total_study_seconds")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -25,11 +25,16 @@ export default function useProgress() {
       }
 
       if (data) {
+        const streakValue = data.streak || 0;
         const restoredProgress = {
           ...progress.getProgress(),
           xp: data.xp ?? 0,
           completedLessons: data.completed_lessons ?? 0,
-          streak: data.streak ?? 0,
+          streak: {
+            lastActive: null,
+            current: Number(streakValue) || 0,
+          },
+          totalStudySeconds: data.total_study_seconds ?? 0,
         };
 
         setState(restoredProgress);
@@ -38,7 +43,8 @@ export default function useProgress() {
           ...progress.getProgress(),
           xp: 0,
           completedLessons: 0,
-          streak: 0,
+          streak: { lastActive: null, current: 0 },
+          totalStudySeconds: 0,
         };
 
         const { error: insertError } = await supabase
@@ -48,6 +54,7 @@ export default function useProgress() {
             xp: 0,
             completed_lessons: 0,
             streak: 0,
+            total_study_seconds: 0,
           });
 
         if (insertError) {
@@ -70,7 +77,8 @@ export default function useProgress() {
         user_id: user.id,
         xp: nextState.xp ?? 0,
         completed_lessons: nextState.completedLessons ?? 0,
-        streak: nextState.streak ?? 0,
+        streak: Number(nextState.streak?.current ?? nextState.streak ?? 0),
+        total_study_seconds: nextState.totalStudySeconds ?? 0,
         updated_at: new Date().toISOString(),
       };
 
@@ -82,9 +90,6 @@ export default function useProgress() {
 
       if (error) {
         console.error("Failed to sync progress:", error);
-        console.error("Progress payload:", payload);
-      } else {
-        console.log("Progress synced successfully:", payload);
       }
     },
     [user?.id]
@@ -117,7 +122,7 @@ export default function useProgress() {
       setState(nextState);
       syncProgress(nextState);
 
-      return nextState.studyTime;
+      return nextState.totalStudySeconds;
     },
     [syncProgress]
   );

@@ -1,16 +1,56 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
-const Auth = ({ onSuccess }) => {
-  const { signUp, signIn } = useAuth();
+ const Auth = ({ onSuccess }) => {
+  const { signUp, signIn, resetPassword, signInWithGoogle } = useAuth();
 
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+    setError("");
+    setMessage("");
+    setLoading(true);
+    try {
+      const { error: resetError } = await resetPassword(email.trim());
+      if (resetError) {
+        throw resetError;
+      }
+      setEmailSent(true);
+      setMessage("Password reset link sent to your email. Please check your inbox.");
+    } catch (err) {
+      setError(err.message || "Failed to send reset link.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setMessage("");
+    setLoading(true);
+    try {
+      const { error: googleError } = await signInWithGoogle();
+      if (googleError) {
+        throw googleError;
+      }
+    } catch (err) {
+      setError(err.message || "Google sign-in failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,21 +153,42 @@ const Auth = ({ onSuccess }) => {
           <div className="auth-field">
             <label htmlFor="password">Password</label>
 
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-              minLength={6}
-              required
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                minLength={6}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
           </div>
 
           {error && <div className="auth-message auth-error">{error}</div>}
 
           {message && (
             <div className="auth-message auth-success">{message}</div>
+          )}
+
+          {mode === "login" && !emailSent && (
+            <button
+              type="button"
+              className="auth-link-button"
+              onClick={handleForgotPassword}
+              disabled={loading}
+            >
+              Forgot your password?
+            </button>
           )}
 
           <button
@@ -140,6 +201,20 @@ const Auth = ({ onSuccess }) => {
               : mode === "login"
               ? "Sign In"
               : "Create Account"}
+          </button>
+
+          <div className="auth-divider">
+            <span>or</span>
+          </div>
+
+          <button
+            type="button"
+            className="google-auth-button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <span className="google-icon">G</span>
+            {mode === "login" ? "Sign in with Google" : "Create account with Google"}
           </button>
         </form>
 
